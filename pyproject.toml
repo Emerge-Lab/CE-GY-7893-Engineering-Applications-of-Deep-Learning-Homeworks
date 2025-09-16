@@ -1,0 +1,12 @@
+[project]
+name = "ce-gy-7893-homeworks"
+version = "0.1.0"
+description = "Engineering Applications of Deep Learning Homeworks"
+requires-python = ">=3.9"
+dependencies = [
+    "torch",
+    "matplotlib",
+    "scipy",
+    "numpy",
+    "jupytext",
+]
