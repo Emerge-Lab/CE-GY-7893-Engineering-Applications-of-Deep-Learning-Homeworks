@@ -9,4 +9,11 @@ dependencies = [
     "scipy",
     "numpy",
     "jupytext",
+    "jupyterlab",
+    "scikit-learn",
+    "torchvision>=0.23.0",
+    "openai",
+    "datasets",
+    "seaborn",
+    "python-dotenv",
 ]

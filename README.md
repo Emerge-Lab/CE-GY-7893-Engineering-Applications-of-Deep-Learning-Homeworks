@@ -72,12 +72,11 @@ Install these recommended extensions:
 
 1. **Python** (by Microsoft) - Useful for Python development
 2. **Jupyter** (by Microsoft) - For working with Jupyter notebooks
-3. **Jupytext** (by Microsoft) - For working with Jupytext notebooks
-4. **Pylance** (by Microsoft) - Advanced Python language support
+3. **Pylance** (by Microsoft) - Advanced Python language support
 
 You can install them via:
 - VS Code Extensions marketplace
-- Command line: `code --install-extension ms-python.python ms-toolsai.jupyter ms-toolsai.jupytext ms-python.pylance`
+- Command line: `code --install-extension ms-python.python ms-toolsai.jupyter ms-python.pylance`
 
 ### Configure Python Interpreter
 
@@ -88,42 +87,22 @@ You can install them via:
    - **uv users**: Select the interpreter from `.venv/bin/python` (or `.venv\Scripts\python.exe` on Windows)
    - **Conda users**: Select the interpreter from your `deep-learning` environment
 
-### Working with Jupyter Notebooks
+### Working with Jupyter Notebooks in VS Code
 
 With the Jupyter extension installed, you can:
 - Create and edit `.ipynb` files directly in VS Code
-- Run cells interactively
+- Run cells interactively with `Shift+Enter`
 - View plots and outputs inline
 - Debug notebook cells
 
-## Jupytext Integration
+## Working with Jupyter Notebooks
 
-This project uses [Jupytext](https://jupytext.readthedocs.io/) to manage notebooks as Python files, making them more git-friendly and easier to review.
-
-### Working with Jupytext Notebooks
-
-Jupytext allows you to:
-- Store notebooks as `.py` files with special formatting
-- Automatically sync between `.py` and `.ipynb` formats
-- Better version control and code reviews
-- Easier collaboration and merging
-
-### Converting between formats
+To work with the homework notebooks:
 
 ```bash
-# Convert .ipynb to .py (percent format)
-uv run jupytext --to py:percent notebook.ipynb
+# Launch Jupyter Lab
+uv run jupyter lab
 
-# Convert .py to .ipynb
-uv run jupytext --to notebook notebook.py
-
-# Sync paired files (if configured)
-uv run jupytext --sync notebook.py
+# Then navigate to and open the .ipynb files
 ```
-
-### VS Code Integration
-
-1. Install the **Jupytext** extension in VS Code
-2. Open `.py` files with `# %%` cells
-3. VS Code will treat them as interactive notebooks
-4. You can run cells directly in VS Code
+If you're not using uv, just launch them the normal way you might a jupyter notebook.
