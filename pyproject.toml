@@ -16,4 +16,6 @@ dependencies = [
     "datasets",
     "seaborn",
     "python-dotenv",
+    "sentence-transformers",
+    "einops>=0.8.1",
 ]
