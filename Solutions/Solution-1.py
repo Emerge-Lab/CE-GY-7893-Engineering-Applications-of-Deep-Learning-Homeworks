@@ -1,6 +1,7 @@
 # ---
 # jupyter:
 #   jupytext:
+#     formats: py:percent,ipynb
 #     text_representation:
 #       extension: .py
 #       format_name: percent
@@ -771,7 +772,7 @@ plt.show()
 #
 # ## Learning Objectives
 # - Understand traditional NLP feature engineering (bag of words)
-# - Learn to use modern embedding APIs (OpenAI)
+# - Learn to use modern embedding APIs (Nomic)
 # - Compare sparse vs dense text representations
 # - Apply linear models to text classification
 # - Understand how to do multi-class classification
@@ -848,7 +849,7 @@ for i in range(3):
     print(f"{sentiment_names[train_labels[i]]}: {train_texts[i][:100]}...")
 
 # %% [markdown]
-# ## Problem 4A: Bag of Words Approach
+# ## Problem 3A: Bag of Words Approach
 #
 # Traditional NLP approach using sparse word count vectors.
 
@@ -930,137 +931,104 @@ def bag_of_words_classification(train_texts, test_texts, train_labels, test_labe
 bow_results = bag_of_words_classification(train_texts, test_texts, train_labels, test_labels)
 
 # %% [markdown]
-# ## Problem 4B: OpenAI Embeddings Approach
+# ## Problem 3B: Embeddings Approach
 #
-# Modern approach using dense vector representations from OpenAI's embedding models. We will talk much later in class what these are, but basically this is a model that takes in text and computes a low dimension feature (a 768 dimensional vector) out of it by looking at the internals of an LLM. It will usually give you a boost over BOW but at the cost of slowing down how fast everything runs and adding the costs of using an LLM provider to things. 
+# Alternate approach using dense vector representations from Nomic's embedding models.
+# Don't worry yet about what an embedding is, it's just a low dimensional representation 
+# of high dimensional text. We have here a pre-trained embedding model that you can use to convert text into high-dimensional vectors that capture semantic meaning.
+
+# %% [markdown]
+# ### Step 1: Implement Nomic Embeddings Function
 #
-# **Note**: You'll need an OpenAI API key. Create one at https://platform.openai.com
+# The function below loads a local embedding model and converts text into feature vectors.
 #
-# **IMPORTANT SECURITY**: Never put API keys directly in your code! 
-#
-# **Recommended approach**: Use a `.env` file
-# 1. Create a `.env` file in your project root (already in .gitignore)
-# 2. Add: `OPENAI_API_KEY=your-api-key-here`
-# 3. The code below will automatically load it
-#
-# **WARNING**: Your API key should NEVER be in your commit history or public repos!
 
 # %%
-import openai
-import os
-from openai import OpenAI
-import time
-
-# %%
-# Choose your API key method (uncomment ONE of the following):
-
-# Option 1: Load from .env file (Recommended)
-from dotenv import load_dotenv
-load_dotenv()
-# IT WILL PRINT TRUE IF THIS SUCCEEDED
-
-# Option 2: Interactive input (most secure for shared environments). 
-# I am not making it the default because it's more annoying but it can be the more secure one. 
-# the sense in which it is the less secure one is it can induce you to write down your private key
-# and store it somewhere where people can easily access it. 
-
-# import getpass
-# os.environ['OPENAI_API_KEY'] = getpass.getpass("Enter OpenAI API key: ")
-
-# %%
-def get_openai_embeddings(texts, model="text-embedding-3-small", batch_size=100):
+from sentence_transformers import SentenceTransformer
+def get_nomic_embeddings(texts, model="nomic-ai/nomic-embed-text-v2-moe", batch_size=32):
     """
-    Get OpenAI embeddings for a list of texts.
+    Get Nomic embeddings for a list of texts using sentence-transformers.
     
     Args:
         texts: List of text strings
-        model: OpenAI embedding model to use
+        model: Nomic embedding model to use
         batch_size: Number of texts to process at once
     
     Returns:
         embeddings: numpy array of shape (n_texts, embedding_dim)
     """
-    # Get API key from environment
-    api_key = os.getenv('OPENAI_API_KEY')
+    print(f"Loading Nomic model: {model}")
+    print("Note: This will download ~500MB on first use")
     
-    if not api_key:
-        print("WARNING: No OpenAI API key found!")
-        print("Please create a .env file with OPENAI_API_KEY=your-key")
-        print("For this demo, we'll use random embeddings instead")
-        
-        # Return random embeddings for demo purposes
-        np.random.seed(42)
-        return np.random.randn(len(texts), 1536)  # text-embedding-3-small dimension
+    # Load the model (implemented for you)
+    embedding_model = SentenceTransformer(model, trust_remote_code=True)
     
-    print("API key loaded successfully")
+    print(f"Getting Nomic embeddings for {len(texts)} texts...")
     
-    client = OpenAI(api_key=api_key)
+    # Encode all texts (sentence-transformers handles batching internally)
+    embeddings = embedding_model.encode(
+        texts, 
+        batch_size=batch_size,
+        show_progress_bar=True,
+        convert_to_numpy=True
+    )
     
-    print(f"Getting OpenAI embeddings for {len(texts)} texts...")
-    print(f"Model: {model}")
+    print(f"Embedding dimensionality: {embeddings.shape[1]}")
+    print(f"Embedding range: [{embeddings.min():.3f}, {embeddings.max():.3f}]")
     
-    all_embeddings = []
-    
-    # Process in batches to avoid rate limits
-    for i in range(0, len(texts), batch_size):
-        batch_texts = texts[i:i+batch_size]
-        
-        try:
-            # Get embeddings for this batch
-            response = client.embeddings.create(
-                input=batch_texts,
-                model=model
-            )
-            
-            # Extract embeddings
-            batch_embeddings = [item.embedding for item in response.data]
-            all_embeddings.extend(batch_embeddings)
-            
-            print(f"Processed batch {i//batch_size + 1}/{(len(texts)-1)//batch_size + 1}")
-            
-            # Rate limiting
-            time.sleep(0.1)
-            
-        except Exception as e:
-            print(f"Error processing batch {i//batch_size + 1}: {e}")
-            print("Using random embeddings for this batch")
-            # Fallback to random embeddings
-            batch_size_actual = len(batch_texts)
-            random_embeddings = np.random.randn(batch_size_actual, 1536).tolist()
-            all_embeddings.extend(random_embeddings)
-    
-    return np.array(all_embeddings)
+    return embeddings
+# %% [markdown]
+# ### Step 2: Implement Classification with Nomic Embeddings
+#
+# **Your task**: The embeddings are already extracted for you. You need to:
+# 1. Train a logistic regression classifier on the embeddings
+# 2. Make predictions and calculate accuracies
+# 3. Return results in the correct format
 
-def openai_embeddings_classification(train_texts, test_texts, train_labels, test_labels):
+# %%
+def nomic_embeddings_classification(train_texts, test_texts, train_labels, test_labels):
     """
-    Implement sentiment classification using OpenAI embeddings.
-    """
-    print("=== OpenAI Embeddings Approach ===")
+    Implement sentiment classification using Nomic embeddings.
     
-    # Get embeddings (this may take a few minutes and cost ~$0.01-0.05)
+    Args:
+        train_texts: List of training text samples
+        test_texts: List of test text samples
+        train_labels: Array of training labels (n_train_samples,)
+        test_labels: Array of test labels (n_test_samples,)
+    
+    Returns:
+        dict: Dictionary containing train_acc, test_acc, predictions, 
+              embeddings_train, and embeddings_test
+    """
+    print("=== Nomic Embeddings Approach ===")
+    
+    # Get embeddings (implemented for you - runs locally, completely free)
     print("Getting training embeddings...")
-    X_train_embeddings = get_openai_embeddings(train_texts)
+    X_train_embeddings = get_nomic_embeddings(train_texts)
     
     print("Getting test embeddings...")
-    X_test_embeddings = get_openai_embeddings(test_texts)
+    X_test_embeddings = get_nomic_embeddings(test_texts)
     
-    print(f"Embedding dimensionality: {X_train_embeddings.shape[1]}")
-    print(f"Embedding range: [{X_train_embeddings.min():.3f}, {X_train_embeddings.max():.3f}]")
+    print(f"Embeddings extracted! Shape: {X_train_embeddings.shape}")
     
-    # Train classifier on embeddings
+    # TODO: Train a logistic regression classifier on the embeddings
+    # Use LogisticRegression(max_iter=1000, random_state=42)
     clf_embeddings = LogisticRegression(max_iter=1000, random_state=42)
     clf_embeddings.fit(X_train_embeddings, train_labels)
     
-    # Evaluate
+    # TODO: Make predictions on both training and test sets
     train_pred_embeddings = clf_embeddings.predict(X_train_embeddings)
     test_pred_embeddings = clf_embeddings.predict(X_test_embeddings)
     
+    # TODO: Calculate accuracies using accuracy_score
     train_acc_embeddings = accuracy_score(train_labels, train_pred_embeddings)
     test_acc_embeddings = accuracy_score(test_labels, test_pred_embeddings)
     
-    print(f"Training accuracy: {train_acc_embeddings:.3f}")
-    print(f"Test accuracy: {test_acc_embeddings:.3f}")
-    
+    # TODO: Print the results
+    # print(f"Training accuracy: {train_acc_embeddings:.3f}")
+    # print(f"Test accuracy: {test_acc_embeddings:.3f}")
+        
+    # TODO: Return results in the specified format:
     return {
         'train_acc': train_acc_embeddings, 
         'test_acc': test_acc_embeddings, 
@@ -1069,11 +1037,17 @@ def openai_embeddings_classification(train_texts, test_texts, train_labels, test
         'embeddings_test': X_test_embeddings
     }
 
-# Run OpenAI embeddings experiment
-openai_results = openai_embeddings_classification(train_texts, test_texts, train_labels, test_labels)
+# Run Nomic embeddings experiment
+nomic_results = nomic_embeddings_classification(train_texts, test_texts, train_labels, test_labels)
 
 # %% [markdown]
-# ## Compare Approaches
+# ## Problem 3C: Compare Approaches
+#
+# **Your task**: Analyze the results from both approaches by:
+# 1. Running the comparison code below
+# 2. Examining the accuracy differences
+# 3. Understanding the trade-offs between sparse (BoW) vs dense (embeddings) representations
+# 4. Answering the reflection questions at the end
 
 # %%
 # Summary comparison
@@ -1083,8 +1057,7 @@ print("="*60)
 
 approaches = [
     ("Count Vectorizer (BoW)", bow_results['count']),
-    ("TF-IDF Vectorizer", bow_results['tfidf']),
-    ("OpenAI Embeddings", openai_results)
+    ("Nomic Embeddings", nomic_results)
 ]
 
 print(f"{'Approach':<25} {'Train Acc':<10} {'Test Acc':<10} {'Overfitting':<12}")
@@ -1103,14 +1076,8 @@ for name, results in approaches:
 # Classification reports
 sentiment_names = ['negative', 'neutral', 'positive']
 
-print("\n=== DETAILED CLASSIFICATION REPORTS ===")
-
-print("\n1. TF-IDF Results:")
-print(classification_report(test_labels, bow_results['tfidf']['predictions'], 
-                          target_names=sentiment_names))
-
-print("\n2. OpenAI Embeddings Results:")
-print(classification_report(test_labels, openai_results['predictions'], 
+print("\n1. Nomic Embeddings Results:")
+print(classification_report(test_labels, nomic_results['predictions'], 
                           target_names=sentiment_names))
 
 # %% [markdown]
@@ -1121,9 +1088,9 @@ print(classification_report(test_labels, openai_results['predictions'],
 fig, axes = plt.subplots(1, 3, figsize=(15, 5))
 
 # Accuracy comparison
-methods = ['Count BoW', 'TF-IDF', 'OpenAI']
-train_accs = [bow_results['count']['train_acc'], bow_results['tfidf']['train_acc'], openai_results['train_acc']]
-test_accs = [bow_results['count']['test_acc'], bow_results['tfidf']['test_acc'], openai_results['test_acc']]
+methods = ['Count BoW', 'Nomic']
+train_accs = [bow_results['count']['train_acc'], nomic_results['train_acc']]
+test_accs = [bow_results['count']['test_acc'], nomic_results['test_acc']]
 
 axes[0].bar(methods, train_accs, alpha=0.7, label='Train Accuracy', color='blue')
 axes[0].bar(methods, test_accs, alpha=0.7, label='Test Accuracy', color='red')
@@ -1158,11 +1125,11 @@ plt.show()
 
 # %%
 # Find examples where methods disagree
-tfidf_pred = bow_results['tfidf']['predictions']
-openai_pred = openai_results['predictions']
+bow_pred = bow_results['count']['predictions']
+nomic_pred = nomic_results['predictions']
 
 # Find disagreements
-disagreements = np.where(tfidf_pred != openai_pred)[0]
+disagreements = np.where(bow_pred != nomic_pred)[0]
 
 print(f"\n=== ERROR ANALYSIS ===")
 print(f"Methods disagree on {len(disagreements)}/{len(test_labels)} samples ({len(disagreements)/len(test_labels)*100:.1f}%)")
@@ -1171,39 +1138,12 @@ if len(disagreements) > 0:
     print(f"\nSample disagreements:")
     for i in disagreements[:5]:  # Show first 5 disagreements
         true_label = sentiment_names[test_labels[i]]
-        tfidf_label = sentiment_names[tfidf_pred[i]]
-        openai_label = sentiment_names[openai_pred[i]]
+        bow_label = sentiment_names[bow_pred[i]]
+        nomic_label = sentiment_names[nomic_pred[i]]
         text = test_texts[i][:100] + "..." if len(test_texts[i]) > 100 else test_texts[i]
         
         print(f"\nText: {text}")
-        print(f"True: {true_label}, TF-IDF: {tfidf_label}, OpenAI: {openai_label}")
+        print(f"True: {true_label}, BoW: {bow_label}, Nomic: {nomic_label}")
 
-# %% [markdown]
-# ## Key Insights and Analysis
-#
-# **What We Learned:**
-#
-# 1. **Feature Representations**:
-#    - **Bag of Words**: Sparse, interpretable, based on word counts
-#    - **OpenAI Embeddings**: Dense, semantic, pre-trained on massive data
-#
-# 2. **Performance Comparison**:
-#    - Which method performed better on this dataset?
-#    - How do the approaches handle different types of text?
-#
-# 3. **Computational Considerations**:
-#    - **BoW**: Fast to compute, no external dependencies
-#    - **OpenAI**: Requires API calls, costs money, but leverages massive pre-training
-#
-# 4. **Interpretability**:
-#    - **BoW**: Can examine feature weights to understand decisions
-#    - **OpenAI**: Black box representations, harder to interpret
-#
-# 5. **Practical Trade-offs**:
-#    - **Development Speed**: OpenAI embeddings often work well out-of-the-box
-#    - **Cost**: BoW is free, OpenAI embeddings cost per token
-#    - **Customization**: BoW can be easily customized for domain-specific vocabulary
-#
-# **When to Use Each Approach:**
-# - **Bag of Words**: When you need interpretability, have domain-specific vocabulary, or want zero-cost inference
-# - **OpenAI Embeddings**: When you want state-of-the-art performance with minimal feature engineering
+
+# %%
